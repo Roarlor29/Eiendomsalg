@@ -1,0 +1,42 @@
+/* Eiendomsalg V2 — responsive presentation layer */
+:root { --v2-max: 1180px; --v2-radius: 12px; }
+html { background: #f6f4ee; }
+body { margin: 0; min-width: 320px; background: #f6f4ee; }
+input, select, button { min-height: 38px; }
+input[type="date"], input[type="number"] { width: 100%; }
+.wrap { width: min(100%, var(--v2-max)); padding-left: clamp(14px, 3vw, 28px); padding-right: clamp(14px, 3vw, 28px); }
+.panel, .scard { border-radius: var(--v2-radius); }
+.srow > span:last-child, .srow > b { text-align: right; font-variant-numeric: tabular-nums; }
+.ytable { font-variant-numeric: tabular-nums; }
+.field input:focus, .datepick input:focus { outline: 2px solid rgba(47,111,94,.28); outline-offset: 1px; border-color: #2f6f5e; }
+@media (max-width: 700px) {
+  .wrap { padding-top: 18px; padding-bottom: 36px; }
+  h1 { font-size: 25px; }
+  .lede { font-size: 14px; margin-bottom: 18px; }
+  .panel { padding: 16px; margin-bottom: 14px; }
+  .grid { grid-template-columns: 1fr; gap: 12px; }
+  .scenario-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .scenario-picker .toggle-c { grid-column: 1 / -1; margin-left: 0; justify-self: start; }
+  .datepick input { width: 100%; }
+  .cards { grid-template-columns: 1fr; gap: 14px; margin-top: 14px; }
+  .scard { padding: 15px 14px 12px; overflow: hidden; }
+  .scard-head { gap: 8px; }
+  .srow { align-items: flex-start; }
+  .srow > span:first-child { flex: 1; min-width: 0; }
+  .srow > span:last-child, .srow > b { flex: 0 0 auto; }
+  .ytable { font-size: 11.5px; }
+  .ytable th, .ytable td { padding: 4px 0; }
+  .chartbox { height: 190px; }
+  .simplebars { height: 175px; gap: 10px; }
+  .simplebar { width: 44px; }
+  .simplebar-label { font-size: 10px; max-width: 90px; }
+  .diffbox { padding: 12px 14px; margin: 14px 0; }
+  .footnote { font-size: 10.5px; }
+}
+@media (max-width: 420px) {
+  .scenario-picker { grid-template-columns: 1fr; }
+  .scenario-picker .toggle-c { grid-column: auto; }
+  .scard-head { align-items: flex-start; flex-direction: column; }
+  .srow { font-size: 12px; }
+  .srow-total { font-size: 13.5px; }
+}
