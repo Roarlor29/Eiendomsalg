@@ -411,7 +411,7 @@ function ScenarioCard({ title, subtitle, s, accent }) {
   );
 }
 
-function App() {
+export default function App() {
   const [g, setG] = useState(DEFAULTS);
   const [saleA, setSaleA] = useState("2026-09-01");
   const [saleB, setSaleB] = useState("2027-01-01");
@@ -701,5 +701,4 @@ function App() {
 }
 
 
-const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(<App />);
+
