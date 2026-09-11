@@ -1,0 +1,19 @@
+{
+  "name": "Eiendomsalg V2",
+  "short_name": "Eiendomsalg",
+  "description": "Sammenligning av salgstidspunkt, skatt, boligkjøp og disponibel økonomi.",
+  "start_url": "/Eiendomsalg/",
+  "scope": "/Eiendomsalg/",
+  "display": "standalone",
+  "background_color": "#f4f6f5",
+  "theme_color": "#246b57",
+  "lang": "no",
+  "icons": [
+    {
+      "src": "/Eiendomsalg/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
