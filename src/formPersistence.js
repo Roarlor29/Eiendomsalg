@@ -15,13 +15,50 @@ function fields(){
   return Array.from(document.querySelectorAll('.field input,.field select,.checks input'));
 }
 
+function numericFields(){
+  return fields().filter(el=>el.dataset.numberFormatted==='1');
+}
+
+function rawNumber(value){
+  return String(value??'').replace(/\D/g,'').replace(/^0+(?=\d)/,'');
+}
+
+function formatNumber(value){
+  const raw=rawNumber(value);
+  return raw ? Number(raw).toLocaleString('nb-NO') : '';
+}
+
+function prepareNumericInput(el){
+  if(el.type!=='number' || el.dataset.numberFormatted==='1') return;
+  el.dataset.numberFormatted='1';
+  el.type='text';
+  el.inputMode='numeric';
+  el.pattern='[0-9]*';
+  el.autocomplete='off';
+  el.value=rawNumber(el.value);
+
+  el.addEventListener('focus',()=>{
+    el.value=rawNumber(el.value);
+    if(el.value==='0') el.select();
+  });
+
+  el.addEventListener('click',()=>{
+    if(el.value==='0') el.select();
+  });
+
+  el.addEventListener('blur',()=>{
+    el.value=formatNumber(el.value);
+    setTimeout(save,0);
+  });
+}
+
 function save(){
   try{
     const data={};
     fields().forEach(el=>{
       const key=fieldKey(el);
       if(!key) return;
-      data[key]=el.type==='checkbox'?el.checked:el.value;
+      data[key]=el.type==='checkbox'?el.checked:rawNumber(el.value);
     });
     localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
   }catch{}
@@ -36,8 +73,11 @@ function restore(){
         const key=fieldKey(el);
         if(!key || !(key in data)) return;
         if(el.type==='checkbox') el.checked=Boolean(data[key]);
-        else el.value=String(data[key]);
+        else el.value=el.dataset.numberFormatted==='1'?rawNumber(data[key]):String(data[key]);
         el.dispatchEvent(new Event(el.type==='checkbox'?'change':'input',{bubbles:true}));
+      });
+      numericFields().forEach(el=>{
+        if(document.activeElement!==el) el.value=formatNumber(el.value);
       });
       return;
     }
@@ -47,19 +87,26 @@ function restore(){
       workMonths.dispatchEvent(new Event('change',{bubbles:true}));
       setTimeout(save,0);
     }
+    numericFields().forEach(el=>{el.value=formatNumber(el.value);});
   }catch{}
 }
 
-function prepare(){
-  fields().forEach(el=>{
-    if(el.type==='number'){
-      const selectZero=()=>{if(el.value==='0') el.select();};
-      el.addEventListener('focus',selectZero);
-      el.addEventListener('click',selectZero);
-    }
+function formatIdleNumbers(){
+  numericFields().forEach(el=>{
+    if(document.activeElement!==el) el.value=formatNumber(el.value);
   });
-  document.addEventListener('input',()=>setTimeout(save,0),true);
-  document.addEventListener('change',()=>setTimeout(save,0),true);
+}
+
+function prepare(){
+  fields().forEach(prepareNumericInput);
+
+  document.addEventListener('input',e=>{
+    const el=e.target;
+    if(el?.dataset?.numberFormatted==='1') el.value=rawNumber(el.value);
+    setTimeout(()=>{save();formatIdleNumbers();},0);
+  },true);
+
+  document.addEventListener('change',()=>setTimeout(()=>{save();formatIdleNumbers();},0),true);
   setTimeout(restore,50);
 }
 
