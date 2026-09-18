@@ -1,4 +1,5 @@
-const STORAGE_KEY='eiendomsalg-v2-inputs';
+const STORAGE_KEY='eiendomsalg-v2-inputs-v3';
+const LEGACY_STORAGE_KEYS=['eiendomsalg-v2-inputs','eiendomsalg-v2-inputs-v2'];
 
 function fieldKey(el){
   const field=el.closest('.field');
