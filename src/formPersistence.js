@@ -1,5 +1,4 @@
 const STORAGE_KEY='eiendomsalg-v2-inputs';
-const WORK_MONTHS_KEY='Antall arbeidsmåneder 2027';
 
 function fieldKey(el){
   const field=el.closest('.field');
@@ -33,33 +32,9 @@ function save(){
   }catch{}
 }
 
-function restore(){
-  try{
-    const raw=localStorage.getItem(STORAGE_KEY);
-    if(raw){
-      const data=JSON.parse(raw);
-      fields().forEach(el=>{
-        const key=fieldKey(el);
-        if(!key || !(key in data)) return;
-        if(el.type==='checkbox') el.checked=Boolean(data[key]);
-        else el.value=el.dataset.money==='1'?rawMoney(data[key]):String(data[key]);
-        el.dispatchEvent(new Event(el.type==='checkbox'?'change':'input',{bubbles:true}));
-      });
-      return;
-    }
-    const workMonths=fields().find(el=>fieldKey(el)===WORK_MONTHS_KEY);
-    if(workMonths){
-      workMonths.value='1';
-      workMonths.dispatchEvent(new Event('change',{bubbles:true}));
-      setTimeout(save,0);
-    }
-  }catch{}
-}
-
 function prepare(){
   document.addEventListener('input',()=>setTimeout(save,0),true);
   document.addEventListener('change',()=>setTimeout(save,0),true);
-  setTimeout(restore,50);
 }
 
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',prepare,{once:true});
