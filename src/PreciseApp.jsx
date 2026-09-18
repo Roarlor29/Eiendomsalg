@@ -55,6 +55,7 @@ const SAVED_TO_STATE={
   'Pengemarkedsrente':'rate',
   'Forventet betalingsmåned restskatt 2028':'taxPaymentMonth',
 };
+const BOOLEAN_KEYS=new Set(['Boliggevinst er skattefri etter eier-/brukstidsreglene','Tomteandelen over naturlig arrondert tomt er skattepliktig','Leieinntekten er skattepliktig','Gift/registrert partner/meldepliktig samboer – skattlegges samlet']);
 const NUMERIC_KEYS=new Set(['total','land','landCost','landImprovements','saleCost','debt','home','purchaseTotal','acquisitionCosts','propertyImprovements','otherAssets','otherDebt','salary','salaryMonths','pension','rent','rate','taxPaymentMonth']);
 function loadSavedState(){
   try{
@@ -64,7 +65,7 @@ function loadSavedState(){
     Object.entries(SAVED_TO_STATE).forEach(([label,key])=>{
       if(!(label in data)) return;
       const value=data[label];
-      saved[key]=NUMERIC_KEYS.has(key)?Number(value):value;
+      saved[key]=BOOLEAN_KEYS.has(label)?Boolean(value):NUMERIC_KEYS.has(key)?Number(value):value;
     });
     return saved;
   }catch{return {}}
