@@ -28,7 +28,9 @@ export function allocateInterestToTaxYears({settlementDate,homePurchaseDate,taxY
   return out;
 }
 
-export function tax2027({salary=0,pension=0,interestIncome=0,taxableRental=0,taxablePropertyGain=0,personfradrag=114540,trinn=[{fra:226100,sats:.017},{fra:318300,sats:.04},{fra:725050,sats:.137},{fra:980100,sats:.168},{fra:1467200,sats:.178}],trygdeLonn=.076,trygdePensjon=.051,mfLonnSats=.46,mfLonnTak=95700,mfPensjonSats=.40,mfPensjonTak=75400,fellesskattSats=.22,pensionCreditMax=37100,pensionStep1=284950,pensionStep2=436050,pensionRate1=.167,pensionRate2=.06}){
+export function tax2027({salary=0,pension=0,interestIncome=0,taxableRental=0,taxablePropertyGain=0,personfradrag=114540,trinn=[{fra:226100,sats:.017},{fra:318300,sats:.04},{fra:725050,sats:.137},{fra:980100,sats:.168},{fra:1467200,sats:.178}],trygdeLonn=.076,trygdePensjon=.051,mfLonnSats=.46,mfLonnTak=95700,mfPensjonSats=.40,mfPensjonTak=75400,fellesskattSats=.22,pensionCreditMax=37100,pensionStep1=284950,pensionStep2=436050,pensionRate1=.167,pensionRate2=.06,creditBasis}){
+  // creditBasis = den delen av pensjonen som gir rett til pensjonistfradrag (standard: hele pensjonen)
+  const cb=creditBasis===undefined?pension:creditBasis;
   const person=salary+pension;
   let bracket=0;
   for(let i=0;i<trinn.length;i++){const lo=trinn[i].fra,hi=i<trinn.length-1?trinn[i+1].fra:Infinity;if(person>lo)bracket+=(Math.min(person,hi)-lo)*trinn[i].sats}
@@ -37,12 +39,12 @@ export function tax2027({salary=0,pension=0,interestIncome=0,taxableRental=0,tax
   const capitalIncome=interestIncome+taxableRental+taxablePropertyGain;
   const ordinaryIncome=Math.max(0,person+capitalIncome-mf-personfradrag);
   const common=ordinaryIncome*fellesskattSats;
-  let credit=pension>0?pensionCreditMax:0;
-  if(pension>pensionStep1)credit-=Math.min(pension-pensionStep1,pensionStep2-pensionStep1)*pensionRate1;
-  if(pension>pensionStep2)credit-=(pension-pensionStep2)*pensionRate2;
+  let credit=cb>0?pensionCreditMax:0;
+  if(cb>pensionStep1)credit-=Math.min(cb-pensionStep1,pensionStep2-pensionStep1)*pensionRate1;
+  if(cb>pensionStep2)credit-=(cb-pensionStep2)*pensionRate2;
   credit=Math.max(0,Math.min(credit,bracket+socialSalary+socialPension+common));
   return {bracket,socialSalary,socialPension,minimumDeduction:mf,capitalIncome,ordinaryIncome,common,pensionCredit:credit,total:Math.max(0,bracket+socialSalary+socialPension+common-credit)};
 }
 
-export function primaryResidenceTaxValue(marketValue){return marketValue<=14000000?marketValue*.25:14000000*.25+(marketValue-14000000)*.70}
-export function wealthTax2027(netWealth,jointTaxation=false){const threshold=jointTaxation?3800000:1900000;const firstBand=jointTaxation?39200000:19600000;const taxable=Math.max(0,netWealth-threshold);return Math.min(taxable,firstBand)*.01+Math.max(0,taxable-firstBand)*.011}
+export function primaryResidenceTaxValue(marketValue,{tak=14000000,satsUnder=.25,satsOver=.70}={}){return marketValue<=tak?marketValue*satsUnder:tak*satsUnder+(marketValue-tak)*satsOver}
+export function wealthTax2027(netWealth,jointTaxation=false,{bunnfradragSingle=1900000,trinn2BreddeSingle=19600000,sats1=.01,sats2=.011}={}){const threshold=jointTaxation?bunnfradragSingle*2:bunnfradragSingle;const firstBand=jointTaxation?trinn2BreddeSingle*2:trinn2BreddeSingle;const taxable=Math.max(0,netWealth-threshold);return Math.min(taxable,firstBand)*sats1+Math.max(0,taxable-firstBand)*sats2}
