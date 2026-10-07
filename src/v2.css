@@ -160,3 +160,6 @@ button.ghost.small { min-height: 36px; padding: 5px 12px; }
   .scn-name { font-size: 13px; }
   .scn-metric { font-size: 11.5px; }
 }
+
+.transfer-box { width: 100%; box-sizing: border-box; font: 13px/1.4 ui-monospace, Menlo, monospace; padding: 10px; border: 1px solid var(--line, #ccc); border-radius: 10px; background: var(--card, #fff); color: inherit; margin: 8px 0; word-break: break-all; }
+button:disabled { opacity: .5; cursor: default; }

@@ -19,6 +19,8 @@ export const DEFAULTS = {
   // Pensjon, avkastning, inflasjon
   folkMonthly: 30700, tjenesteMonthly: 8500, tjenesteStart: '2028-05-29', tjenesteCredit: false,
   pensionGrowth: 0.025, rate: 0.04, inflation: 0.025,
+  // Sparemål: hvor mye kapital som skal stå igjen 31.12.2036 (etter skatt). Resten kan brukes.
+  targetEnabled: false, targetClosing: 1000000,
   // Betaling av skatt
   advanceShare: 1, advanceMonth: 9, taxPaymentMonth: 8, taxAuthorityRate: 0.0312,
   // Overstyring per år: { 2028: { rate: .035, folk: 31500, tjeneste: 9000, withdrawal: 400000 } }
@@ -184,3 +186,42 @@ export function clearAll() {
 }
 
 export const copyScenarioData = (data) => deepCopy(data)
+
+// ---------------------------------------------------------------------------
+// Overføring mellom enheter. Alt lagres i nettleseren på hver enhet, så scenarioene pakkes i en
+// kort kode (bare felt som avviker fra standardverdiene tas med) som kan sendes som tekst eller lenke.
+// ---------------------------------------------------------------------------
+const CODE_PREFIX = 'EA1.'
+const toB64 = (str) => btoa(unescape(encodeURIComponent(str))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+const fromB64 = (b) => decodeURIComponent(escape(atob(b.replace(/-/g, '+').replace(/_/g, '/'))))
+
+export function encodeStore(store) {
+  const slim = {
+    v: 4, chosen: store.chosen, active: store.active,
+    scenarios: store.scenarios.map((sc) => {
+      const d = {}
+      for (const k of Object.keys(DEFAULTS)) {
+        if (k === 'payouts' || k === 'yr') continue
+        if (sc.data[k] !== DEFAULTS[k]) d[k] = sc.data[k]
+      }
+      d.payouts = sc.data.payouts
+      d.yr = sc.data.yr
+      return { id: sc.id, name: sc.name, data: d }
+    }),
+  }
+  return CODE_PREFIX + toB64(JSON.stringify(slim))
+}
+
+// Tar imot koden, eller hele lenken med koden bak «#d=». Gir null hvis teksten ikke er en gyldig kode.
+export function decodeStore(text) {
+  try {
+    let t = String(text || '').trim()
+    const i = t.indexOf('#d=')
+    if (i >= 0) t = t.slice(i + 3)
+    t = t.replace(/\s+/g, '')
+    if (!t.startsWith(CODE_PREFIX)) return null
+    const raw = JSON.parse(fromB64(t.slice(CODE_PREFIX.length)))
+    if (!raw || !Array.isArray(raw.scenarios)) return null
+    return sanitizeStore(raw)
+  } catch { return null }
+}

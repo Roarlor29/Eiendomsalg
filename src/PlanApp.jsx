@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { runPlan, yearInputs, dayToDate, FIRST_YEAR, YEARS } from './planEngine.js'
-import { clampField, clampMoney, loadStore, saveStore, clearAll, freshState, freshStore, copyScenarioData, MAX_NAME } from './planState.js'
+import { clampField, clampMoney, loadStore, saveStore, clearAll, encodeStore, decodeStore, freshState, freshStore, copyScenarioData, MAX_NAME } from './planState.js'
 import { Field, MoneyInput, PctInput, DateInput, kr, krShort, pct } from './inputs.jsx'
 import IncomeChart from './IncomeChart.jsx'
 import { ScenarioBar, ChosenBanner } from './ScenarioBar.jsx'
@@ -13,6 +13,33 @@ export default function PlanApp() {
   // Tre uavhengige scenarioer. Alle redigeringer under gjelder det aktive scenarioet.
   const [store, setStore] = useState(loadStore)
   useEffect(() => saveStore(store), [store])
+  // Åpnes siden fra en overføringslenke (#d=...), tilbys import av scenarioene.
+  const hashDone = useRef(false)
+  useEffect(() => {
+    if (hashDone.current) return
+    hashDone.current = true
+    const h = window.location.hash
+    if (!h.startsWith('#d=')) return
+    const imported = decodeStore(h)
+    window.history.replaceState(null, '', window.location.pathname + window.location.search)
+    if (!imported) { window.alert('Lenken er ufullstendig eller ødelagt, så ingenting ble hentet inn.'); return }
+    if (window.confirm('Erstatte alle scenarioene på denne enheten med de fra lenken?')) setStore(imported)
+  }, [])
+  const [transfer, setTransfer] = useState({ code: '', paste: '', msg: '' })
+  const makeCode = () => setTransfer((t) => ({ ...t, code: encodeStore(store), msg: '' }))
+  const linkOf = (code) => window.location.origin + window.location.pathname + '#d=' + code
+  const copyText = async (text, okMsg) => {
+    try { await navigator.clipboard.writeText(text); setTransfer((t) => ({ ...t, msg: okMsg })) }
+    catch { setTransfer((t) => ({ ...t, msg: 'Kunne ikke kopiere automatisk. Marker teksten og kopier selv.' })) }
+  }
+  const importCode = () => {
+    const imported = decodeStore(transfer.paste)
+    if (!imported) { setTransfer((t) => ({ ...t, msg: 'Fant ingen gyldig kode eller lenke i teksten.' })); return }
+    if (window.confirm('Erstatte alle tre scenarioene på denne enheten med de du har limt inn?')) {
+      setStore(imported)
+      setTransfer({ code: '', paste: '', msg: 'Scenarioene er hentet inn.' })
+    }
+  }
   // Hvert scenario beregnes for seg. Resultatet gjenbrukes så lenge scenarioets data er uendret.
   const cache = useRef(new WeakMap())
   const planOf = (data) => {
@@ -27,6 +54,8 @@ export default function PlanApp() {
   const plan = plans[activeIdx]
   const yi = useMemo(() => yearInputs(g), [g])
   const { years, summary: S } = plan
+  const steadyYears = years.filter((r) => r.year >= S.steadyFrom)
+  const avgWithdrawalPerMonth = steadyYears.reduce((a, r) => a + r.withdrawals, 0) / Math.max(1, steadyYears.length) / 12
   const setG = (fn) => setStore((st) => ({ ...st, scenarios: st.scenarios.map((sc) => (sc.id === st.active ? { ...sc, data: fn(sc.data) } : sc)) }))
   const selectScenario = (id) => setStore((st) => ({ ...st, active: id }))
   const renameScenario = (id, name) => setStore((st) => ({ ...st, scenarios: st.scenarios.map((sc) => (sc.id === id ? { ...sc, name: name.slice(0, MAX_NAME) } : sc)) }))
@@ -174,6 +203,7 @@ export default function PlanApp() {
           Netto kapital på konto etter salg og innfridd gjeld: <b>{kr(S.initial)}</b>.
           Ny bolig koster totalt <b>{kr(S.home.total)}</b>{S.home.docFee > 0 ? ` (inkl. dokumentavgift ${kr(S.home.docFee)})` : ''}.
           Snittene gjelder fra {S.steadyFrom}, første hele år etter siste utbetaling og boligkjøp.
+          {S.targetEnabled ? ` Sparemål: ${kr(S.target)} i ${FIRST_YEAR + YEARS - 1}, som gir ${kr(S.extraPerMonth)} per måned i ekstra forbruk.` : ''}
         </p>
       </div>
 
@@ -286,6 +316,41 @@ export default function PlanApp() {
       </div>
 
       <div className="panel">
+        <h2>Sparemål og forbruk</h2>
+        <div className="checks">
+          <label><input type="checkbox" checked={!!g.targetEnabled} onChange={toggle('targetEnabled')} /> Jeg vil bruke av kapitalen, og la en bestemt sum stå igjen i {FIRST_YEAR + YEARS - 1}</label>
+        </div>
+        {g.targetEnabled && (
+          <>
+            <div className="grid">
+              {moneyField('targetClosing', `Kapital som skal stå igjen 31.12.${FIRST_YEAR + YEARS - 1} (etter skatt)`, 'Appen regner ut hvor mye du kan bruke resten av tiden')}
+            </div>
+            <div className="hero-grid multi">
+              <div className="hero">
+                <span>Ekstra forbruk per måned</span>
+                <strong>{krShort(S.extraPerMonth)}</strong>
+                <small>{krShort(S.extraPerMonth * 12)} kr per år, i tillegg til avkastningen · fra {S.steadyFrom}</small>
+              </div>
+              <div className="hero">
+                <span>Totalt uttak per måned</span>
+                <strong>{krShort(avgWithdrawalPerMonth)}</strong>
+                <small>avkastning etter skatt + ekstra forbruk (snitt {S.steadyFrom}–{FIRST_YEAR + YEARS - 1})</small>
+              </div>
+              <div className="hero">
+                <span>Disponibelt per måned</span>
+                <strong>{krShort(S.avgDisposablePerMonth)}</strong>
+                <small>pensjon etter skatt + uttak</small>
+              </div>
+            </div>
+          </>
+        )}
+        <p className="field-hint">
+          Ekstra forbruk tas fra og med {S.steadyFrom}, første hele år etter siste utbetaling og boligkjøp, og gjelder alle år du ikke har overstyrt uttaket i tabellen under.
+          Tallet regnes ut slik at kapitalen etter skatt blir lik målet. Uten sparemål lar appen kapitalen stå urørt og du bruker bare avkastningen.
+        </p>
+      </div>
+
+      <div className="panel">
         <h2>Pensjon, avkastning og inflasjon</h2>
         <div className="grid">
           {moneyField('folkMonthly', 'Folketrygd per måned (brutto, 2027)')}
@@ -380,6 +445,34 @@ export default function PlanApp() {
           {pctField('primaerboligSatsOver', 'Primærbolig: andel av verdi over tak')}
         </div>
       </details>
+
+      <div className="panel">
+        <h2>Overfør til en annen enhet</h2>
+        <p className="field-hint">
+          Tallene lagres bare i nettleseren på denne enheten. For å få de samme tre scenarioene på iPhone eller Mac lager du en kode her,
+          sender den til deg selv (Notater, melding eller e-post) og limer den inn på den andre enheten. Alternativt åpner du lenken der.
+        </p>
+        <div className="reset-row">
+          <button type="button" className="primary" onClick={makeCode}>Lag overføringskode</button>
+        </div>
+        {transfer.code && (
+          <>
+            <textarea className="transfer-box" readOnly rows={4} value={linkOf(transfer.code)} onFocus={(e) => e.target.select()} aria-label="Overføringslenke" />
+            <div className="reset-row">
+              <button type="button" className="ghost" onClick={() => copyText(linkOf(transfer.code), 'Lenken er kopiert. Lim den inn i Notater eller en melding til deg selv.')}>Kopier lenke</button>
+              <button type="button" className="ghost" onClick={() => copyText(transfer.code, 'Koden er kopiert.')}>Kopier bare koden</button>
+            </div>
+          </>
+        )}
+        <label className="field">
+          <span className="field-label">Hent inn fra en annen enhet: lim inn kode eller lenke</span>
+          <textarea className="transfer-box" rows={3} value={transfer.paste} onChange={(e) => setTransfer((t) => ({ ...t, paste: e.target.value, msg: '' }))} placeholder="EA1.…" />
+        </label>
+        <div className="reset-row">
+          <button type="button" className="ghost" disabled={!transfer.paste.trim()} onClick={importCode}>Hent inn og erstatt alle scenarioer</button>
+        </div>
+        {transfer.msg && <p className="field-hint" role="status"><b>{transfer.msg}</b></p>}
+      </div>
 
       <div className="footnote">
         <b>Forutsetninger og begrensninger.</b> Renter beregnes som enkel rente per dag på saldoen og krediteres 31.12. Pensjonen øker med valgt årlig prosent.

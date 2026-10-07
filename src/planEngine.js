@@ -81,7 +81,7 @@ export function yearInputs(g) {
   return out
 }
 
-export function runPlan(g) {
+function runPlanCore(g, extraMonthly = 0) {
   const warnings = []
   const tp = taxParams(g), wp = wealthParams(g), hp = homeParams(g)
   const share = Math.min(1, Math.max(0, num(g.advanceShare, 1)))
@@ -127,6 +127,15 @@ export function runPlan(g) {
     if (homeDay === null || homeDay < dn(FIRST_YEAR, 1, 1) || homeDay >= lastDay) warnings.push('Kjøpsdato for ny bolig mangler eller ligger utenfor planperioden. Boligen er ikke med.')
     else if (homeDay < settleDay) warnings.push('Kjøpsdato for ny bolig er før salgsoppgjøret er på konto.')
   }
+
+  // «Stabilt år» = første hele år etter siste utbetaling/boligkjøp (brukes til snitt og ekstra uttak).
+  const lastEventYear = Math.max(
+    yearOfDay(settleDay),
+    ...payouts.filter((p) => p.day !== null && p.amount !== 0).map((p) => yearOfDay(p.day)),
+    homePrice > 0 && homeDay !== null ? yearOfDay(homeDay) : FIRST_YEAR,
+  )
+  const steadyFrom = Math.min(FIRST_YEAR + YEARS - 1, lastEventYear + 1)
+  const extraAnnual = Math.max(0, extraMonthly) * 12
 
   const years = []
   const events = []
@@ -207,7 +216,7 @@ export function runPlan(g) {
       s = sim(F, auto ? Wauto : fixedW)
       t = taxesFor(s)
       const Fn = share * t.capitalTax
-      const Wn = auto ? Math.max(0, s.interest - t.interestTax - t.wealth) : 0
+      const Wn = auto ? Math.max(0, s.interest - t.interestTax - t.wealth + (y >= steadyFrom ? extraAnnual * (wDays.length / 12) : 0)) : 0
       const done = Math.abs(Fn - F) < 0.25 && Math.abs(Wn - Wauto) < 0.25
       F = Fn
       Wauto = Wn
@@ -249,14 +258,6 @@ export function runPlan(g) {
   }
 
   const sum = (k) => years.reduce((a, r) => a + r[k], 0)
-  // «Stabilt år» = første hele år etter siste utbetaling/boligkjøp. Snittene bruker disse årene,
-  // fordi oppstartsårene (kapitalen er ikke ferdig fordelt) gir et skjevt bilde av hverdagen.
-  const lastEventYear = Math.max(
-    yearOfDay(settleDay),
-    ...payouts.filter((p) => p.day !== null && p.amount !== 0).map((p) => yearOfDay(p.day)),
-    homePrice > 0 && homeDay !== null ? yearOfDay(homeDay) : FIRST_YEAR,
-  )
-  const steadyFrom = Math.min(FIRST_YEAR + YEARS - 1, lastEventYear + 1)
   const steady = years.filter((r) => r.year >= steadyFrom)
   const avg = (k) => steady.reduce((a, r) => a + r[k], 0) / steady.length
   const last = years[years.length - 1]
@@ -269,9 +270,38 @@ export function runPlan(g) {
     avgPensionNetPerMonth: avg('pensionNet') / 12,
     avgDisposablePerMonth: avg('disposablePerMonth'),
     avgDisposablePerMonthReal: avg('disposablePerMonthReal'),
+    extraPerMonth: extraMonthly,
     closing: last.close, outstandingTax: restDue,
     closingAfterTax: last.close - restDue,
     closingReal: (last.close - restDue) / Math.pow(1 + inflation, YEARS - 1),
   }
   return { years, events, warnings: [...new Set(warnings)], summary, home }
+}
+
+// Hovedfunksjon. Hvis «sparemål» er slått på, finner vi (ved halvering) hvor mye ekstra som kan brukes
+// per måned fra første stabile år, slik at kapitalen etter skatt 31.12.2036 blir lik målet.
+export function runPlan(g) {
+  const base = runPlanCore(g, 0)
+  if (!g.targetEnabled) return base
+  const target = Math.max(0, Number(g.targetClosing) || 0)
+  const f = (x) => runPlanCore(g, x)
+  const warnings = []
+  let lo = 0, hi = Math.max(1e6, base.summary.initial) / 6 + 1e5
+  let best = base
+  if (base.summary.closingAfterTax < target - 1) {
+    warnings.push('Målet for kapital i 2036 er høyere enn kapitalen holder til selv uten ekstra uttak. Ekstra uttak er satt til 0.')
+  } else {
+    if (f(hi).summary.closingAfterTax > target) { best = f(hi); lo = hi }
+    else {
+      for (let i = 0; i < 40; i++) {
+        const mid = (lo + hi) / 2
+        if (f(mid).summary.closingAfterTax >= target) lo = mid; else hi = mid
+      }
+      best = f(lo)
+    }
+  }
+  best.summary.target = target
+  best.summary.targetEnabled = true
+  best.warnings = [...new Set([...best.warnings, ...warnings])]
+  return best
 }

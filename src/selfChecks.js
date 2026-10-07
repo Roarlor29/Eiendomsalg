@@ -1,6 +1,6 @@
 import { tax2027, wealthTax2027, primaryResidenceTaxValue } from './engineV2.js'
 import { runPlan } from './planEngine.js'
-import { DEFAULTS, clampField, freshStore, sanitizeStore } from './planState.js'
+import { DEFAULTS, clampField, freshStore, sanitizeStore, encodeStore, decodeStore } from './planState.js'
 
 // Ingen testrammeverk her (bevisst: appen skal fortsatt bygges med det enkle Vite-oppsettet).
 // Dette er enkle kontroller av skatte-, formuesskatt- og planlogikken som kjøres i nettleserkonsollen
@@ -91,6 +91,28 @@ export function runSelfChecks() {
     {
       name: 'plan: salgsgevinst på tomt gir 22 % skatt (1,5 mill gevinst)',
       run: () => Math.round(plan({ land: 3500000, landCost: 2000000 }).years[0].gainTax), expect: 330000,
+    },
+    {
+      name: 'overføringskode: kode → tilbake gir samme scenarioer',
+      run: () => {
+        const st = freshStore()
+        st.scenarios[1].data.rate = 0.031
+        st.scenarios[1].name = 'Æ Ø Å'
+        st.chosen = 2
+        const back = decodeStore('https://x.no/Eiendomsalg/#d=' + encodeStore(st))
+        return !!back && back.scenarios[1].data.rate === 0.031 && back.scenarios[1].name === 'Æ Ø Å' && back.chosen === 2 && back.scenarios[0].data.rate === DEFAULTS.rate
+      },
+      expect: true,
+    },
+    {
+      name: 'overføringskode: ugyldig tekst avvises',
+      run: () => decodeStore('hei på deg') === null && decodeStore('EA1.%%%') === null,
+      expect: true,
+    },
+    {
+      name: 'sparemål: 1 mill igjen i 2036 gir nøyaktig det målet (etter skatt)',
+      run: () => Math.round(runPlan({ ...DEFAULTS, targetEnabled: true, targetClosing: 1000000 }).summary.closingAfterTax),
+      expect: 1000000,
     },
   ]
 
