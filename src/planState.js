@@ -17,7 +17,7 @@ export const DEFAULTS = {
   // Ny bolig
   homePrice: 7500000, homeDate: '2028-01-15', homeDocFee: true, homeDocFeeRate: 0.025, homeCosts: 0, homeImprovements: 0,
   // Pensjon, avkastning, inflasjon
-  folkMonthly: 30700, tjenesteMonthly: 8500, tjenesteStart: '2028-05-29', tjenesteCredit: false,
+  folkMonthly: 30700, folkStart: '2028-06-01', tjenesteMonthly: 8500, tjenesteStart: '2028-06-01', tjenesteCredit: false,
   pensionGrowth: 0.025, rate: 0.04, inflation: 0.025,
   // Sparemål: hvor mye kapital som skal stå igjen 31.12.2036 (etter skatt). Resten kan brukes.
   targetEnabled: false, targetClosing: 1000000,
@@ -69,6 +69,7 @@ function sanitize(raw) {
     else if (typeof def === 'boolean' && typeof v === 'boolean') out[key] = v
     else if (typeof def === 'string' && isDate(v)) {
       if (key === 'sale' && !v.startsWith('2027-')) continue // salget må ligge i 2027
+      if (key === 'tjenesteStart' && v === '2028-05-29') continue // gammel standardverdi → ny (01.06.2028)
       out[key] = v
     }
   }

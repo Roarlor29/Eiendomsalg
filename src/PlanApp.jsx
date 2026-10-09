@@ -54,8 +54,7 @@ export default function PlanApp() {
   const plan = plans[activeIdx]
   const yi = useMemo(() => yearInputs(g), [g])
   const { years, summary: S } = plan
-  const steadyYears = years.filter((r) => r.year >= S.steadyFrom)
-  const avgWithdrawalPerMonth = steadyYears.reduce((a, r) => a + r.withdrawals, 0) / Math.max(1, steadyYears.length) / 12
+  const avgWithdrawalPerMonth = S.avgWithdrawalPerMonth
   const setG = (fn) => setStore((st) => ({ ...st, scenarios: st.scenarios.map((sc) => (sc.id === st.active ? { ...sc, data: fn(sc.data) } : sc)) }))
   const selectScenario = (id) => setStore((st) => ({ ...st, active: id }))
   const renameScenario = (id, name) => setStore((st) => ({ ...st, scenarios: st.scenarios.map((sc) => (sc.id === id ? { ...sc, name: name.slice(0, MAX_NAME) } : sc)) }))
@@ -108,14 +107,15 @@ export default function PlanApp() {
       { l: 'Skatt på salgsgevinst', f: (y) => -y.gainTax, hide: true },
       { l: 'Netto avkastning (renter − skatt − formuesskatt)', f: (y) => y.netReturn, strong: true },
       { l: 'Uttak fra kapital til livsopphold', f: (y) => -y.withdrawals },
+      { l: '  Uttak per måned', f: (y) => y.withdrawalPerMonth, strong: true },
       { l: 'Restskatt fra året før (inkl. rentetillegg)', f: (y) => -y.restPaid, hide: true },
       { l: 'Saldo 31. desember', f: (y) => y.close, strong: true },
       { l: 'Formuesgrunnlag 31.12 (etter fradrag av gjeld)', f: (y) => y.wealthNet },
     ] },
     { title: 'Pensjon', rows: [
-      { l: 'Folketrygd per måned', f: (y) => y.folkMonthly },
-      { l: 'Tjenestepensjon per måned', f: (y) => y.tjenesteMonthly },
-      { l: 'Pensjon brutto per år (tjenestepensjon fra startdato)', f: (y) => y.pension },
+      { l: 'Folketrygd per måned', f: (y) => (y.folkFraction > 0 ? y.folkMonthly : 0) },
+      { l: 'Tjenestepensjon per måned', f: (y) => (y.tjenesteFraction > 0 ? y.tjenesteMonthly : 0) },
+      { l: 'Pensjon brutto per år (fra startdatoene)', f: (y) => y.pension },
       { l: 'Skatt på pensjon (trekkes)', f: (y) => -y.trekkPensjon },
       { l: 'Pensjon etter skatt per år', f: (y) => y.pensionNet, strong: true },
       { l: 'Herav pensjonistfradrag i skatten', f: (y) => y.pensionCredit },
@@ -342,6 +342,12 @@ export default function PlanApp() {
                 <small>pensjon etter skatt + uttak</small>
               </div>
             </div>
+            <div className="plan-scroll">
+              <table className="plan-table">
+                <thead><tr><th>Uttak per måned</th>{years.map((y) => <th key={y.year}>{y.year}</th>)}</tr></thead>
+                <tbody><tr><td>Fra kapitalen</td>{years.map((y) => <td key={y.year}>{krShort(y.withdrawalPerMonth)}</td>)}</tr></tbody>
+              </table>
+            </div>
           </>
         )}
         <p className="field-hint">
@@ -353,7 +359,8 @@ export default function PlanApp() {
       <div className="panel">
         <h2>Pensjon, avkastning og inflasjon</h2>
         <div className="grid">
-          {moneyField('folkMonthly', 'Folketrygd per måned (brutto, 2027)')}
+          {moneyField('folkMonthly', 'Folketrygd per måned (brutto, 2027-nivå)')}
+          <Field label="Folketrygd starter" hint="Ingen pensjon før denne datoen. Første år forholdsmessig."><DateInput label="Folketrygd starter" value={g.folkStart} min="2027-01-01" max="2036-12-31" onChange={put('folkStart')} /></Field>
           {moneyField('tjenesteMonthly', 'Tjenestepensjon per måned (brutto)')}
           <Field label="Tjenestepensjon starter" hint="Utbetales forholdsmessig første år"><DateInput label="Tjenestepensjon starter" value={g.tjenesteStart} min="2027-01-01" max="2036-12-31" onChange={put('tjenesteStart')} /></Field>
           {pctField('pensionGrowth', 'Årlig økning i pensjon', 'Antakelse. Overstyr per år i tabellen under.')}

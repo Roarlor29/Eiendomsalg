@@ -114,6 +114,16 @@ export function runSelfChecks() {
       run: () => Math.round(runPlan({ ...DEFAULTS, targetEnabled: true, targetClosing: 1000000 }).summary.closingAfterTax),
       expect: 1000000,
     },
+    {
+      name: 'pensjon: ingen pensjon i 2027, full månedspensjon fra 2029',
+      run: () => { const y = runPlan(DEFAULTS).years; return y[0].pension === 0 && Math.round(y[2].folkMonthly) > 30700 * 1.02 },
+      expect: true,
+    },
+    {
+      name: 'pensjon: 2028 har 7 av 12 måneder (fra 1. juni)',
+      run: () => { const y = runPlan(DEFAULTS).years[1]; return Math.round(y.pensionFolk / (y.folkMonthly * 12) * 366) },
+      expect: 214,
+    },
   ]
 
   const results = cases.map((c) => {

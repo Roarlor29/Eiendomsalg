@@ -14,6 +14,7 @@ export default function ComparePanel({ store, plans }) {
     { l: 'Kapital å leve av (første stabile år)', v: (p, i) => steady[i].open },
     { section: 'Per måned (snitt fra første stabile år)' },
     { l: 'Netto avkastning', v: (p) => p.summary.avgNetReturnPerMonth, better: 'high' },
+    { l: 'Uttak fra kapital (avkastning + ekstra forbruk)', v: (p) => p.summary.avgWithdrawalPerMonth },
     { l: 'Disponibelt (pensjon + uttak)', v: (p) => p.summary.avgDisposablePerMonth, better: 'high', strong: true },
     { l: 'Disponibelt i 2027-kroner', v: (p) => p.summary.avgDisposablePerMonthReal, better: 'high' },
     { section: 'Etter 10 år og skatt' },

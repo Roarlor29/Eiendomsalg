@@ -56,13 +56,15 @@ export function yearInputs(g) {
   const growth = num(g.pensionGrowth)
   const tjStart = parseDay(g.tjenesteStart, null)
   const tjStartYear = tjStart === null ? FIRST_YEAR : yearOfDay(tjStart)
+  const fkStart = parseDay(g.folkStart, null)
+  const fkStartYear = fkStart === null ? FIRST_YEAR : yearOfDay(fkStart)
   const out = []
   for (let i = 0; i < YEARS; i++) {
     const y = FIRST_YEAR + i
     const o = (g.yr && g.yr[y]) || {}
     const prev = out[i - 1]
     const d = {
-      folk: prev ? prev.folkMonthly * (1 + growth) : num(g.folkMonthly),
+      folk: y <= fkStartYear ? num(g.folkMonthly) : prev.folkMonthly * (1 + growth),
       tjeneste: y <= tjStartYear ? num(g.tjenesteMonthly) : prev.tjenesteMonthly * (1 + growth),
       rate: prev ? prev.rate : num(g.rate),
     }
@@ -70,11 +72,13 @@ export function yearInputs(g) {
     const tj = has(o.tjeneste) ? o.tjeneste : d.tjeneste
     const rate = has(o.rate) ? o.rate : d.rate
     const yStart = dn(y, 1, 1), yEnd = dn(y + 1, 1, 1)
-    const frac = tjStart === null ? 0 : Math.min(1, Math.max(0, (yEnd - Math.max(tjStart, yStart)) / (yEnd - yStart)))
+    const fracOf = (st) => (st === null ? 0 : Math.min(1, Math.max(0, (yEnd - Math.max(st, yStart)) / (yEnd - yStart))))
+    const frac = fracOf(tjStart), folkFrac = fracOf(fkStart)
     out.push({
       year: y, defaults: d, overrides: o,
       rate, folkMonthly: folk, tjenesteMonthly: tj, tjenesteFraction: frac,
-      pensionFolk: folk * 12, pensionTjeneste: tj * 12 * frac,
+      folkFraction: folkFrac,
+      pensionFolk: folk * 12 * folkFrac, pensionTjeneste: tj * 12 * frac,
       withdrawalFixed: has(o.withdrawal) ? o.withdrawal : null,
     })
   }
@@ -243,7 +247,7 @@ function runPlanCore(g, extraMonthly = 0) {
       year: y, rate: yi.rate, open, close: s.close, minBal: s.minBal,
       interest: s.interest, interestTax: t.interestTax, gainTax: t.gainTax, wealthNet: t.wealthNet, wealthTax: t.wealth,
       capitalTax: t.capitalTax, forskudd: paidForskudd, restPaid, restInterest, restNext: (1 - share) * t.capitalTax,
-      withdrawals, auto, payouts: payoutsSum, homeOut, settlementIn,
+      withdrawals, withdrawalPerMonth: wDays.length ? withdrawals / wDays.length : 0, auto, payouts: payoutsSum, homeOut, settlementIn,
       folkMonthly: yi.folkMonthly, tjenesteMonthly: yi.tjenesteMonthly, tjenesteFraction: yi.tjenesteFraction,
       pensionFolk: yi.pensionFolk, pensionTjeneste: yi.pensionTjeneste, pension, salary,
       trekkPensjon, pensionNet, pensionCredit: t.tNoGain.pensionCredit, taxTotalAll: t.tFull.total,
@@ -268,6 +272,7 @@ function runPlanCore(g, extraMonthly = 0) {
     steadyFrom,
     avgNetReturnPerMonth: avg('netReturn') / 12,
     avgPensionNetPerMonth: avg('pensionNet') / 12,
+    avgWithdrawalPerMonth: avg('withdrawalPerMonth'),
     avgDisposablePerMonth: avg('disposablePerMonth'),
     avgDisposablePerMonthReal: avg('disposablePerMonthReal'),
     extraPerMonth: extraMonthly,
