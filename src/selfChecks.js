@@ -120,6 +120,11 @@ export function runSelfChecks() {
       expect: true,
     },
     {
+      name: 'pensjon: årsrekken har folketrygd per måned fra 2028 (vises i tabellen)',
+      run: () => { const y = runPlan(DEFAULTS).years; return y[0].folkFraction === 0 && y[1].folkFraction > 0.55 && y[1].folkFraction < 0.6 && y[2].folkFraction === 1 },
+      expect: true,
+    },
+    {
       name: 'pensjon: 2028 har 7 av 12 måneder (fra 1. juni)',
       run: () => { const y = runPlan(DEFAULTS).years[1]; return Math.round(y.pensionFolk / (y.folkMonthly * 12) * 366) },
       expect: 214,

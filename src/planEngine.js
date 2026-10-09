@@ -248,7 +248,7 @@ function runPlanCore(g, extraMonthly = 0) {
       interest: s.interest, interestTax: t.interestTax, gainTax: t.gainTax, wealthNet: t.wealthNet, wealthTax: t.wealth,
       capitalTax: t.capitalTax, forskudd: paidForskudd, restPaid, restInterest, restNext: (1 - share) * t.capitalTax,
       withdrawals, withdrawalPerMonth: wDays.length ? withdrawals / wDays.length : 0, auto, payouts: payoutsSum, homeOut, settlementIn,
-      folkMonthly: yi.folkMonthly, tjenesteMonthly: yi.tjenesteMonthly, tjenesteFraction: yi.tjenesteFraction,
+      folkMonthly: yi.folkMonthly, tjenesteMonthly: yi.tjenesteMonthly, tjenesteFraction: yi.tjenesteFraction, folkFraction: yi.folkFraction,
       pensionFolk: yi.pensionFolk, pensionTjeneste: yi.pensionTjeneste, pension, salary,
       trekkPensjon, pensionNet, pensionCredit: t.tNoGain.pensionCredit, taxTotalAll: t.tFull.total,
       netReturn, netReturnPerMonth: netReturn / 12,
